@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lung Cancer Classification</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), 
+                       url('https://placehold.co/1920x1080') center/cover no-repeat fixed;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 2rem auto;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                flex-direction: row;
+            }
+        }
+
+        .upload-section, .results-section {
+            flex: 1;
+            padding: 1.5rem;
+        }
+
+        .upload-box {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-box:hover {
+            border-color: #2980b9;
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-box i {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #555;
+        }
+
+        .upload-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+
+        #preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            display: none;
+            margin: 1rem auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .processing-section {
+            margin-top: 2rem;
+        }
+
+        .progress-container {
+            background-color: #f3f3f3;
+            border-radius: 20px;
+            height: 10px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background-color: #3498db;
+            transition: width 0.5s ease;
+        }
+
+        .processing-steps {
+            margin-top: 1rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius:.5rem;
+            background-color: #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.8rem;
+        }
+
+        .step.active .step-icon {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .step.completed .step-icon {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .results-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .prediction-label {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .prediction-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .confidence-bars {
+            margin-top: 2rem;
+        }
+
+        .confidence-item {
+            margin-bottom: 1rem;
+        }
+
+        .confidence-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .confidence-bar-container {
+            height: 8px;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-bar {
+            height: 100%;
+            background-color: #3498db;
+            transition: width 1s ease;
+        }
+
+        .lds-ring {
+            display: none;
+            position: relative;
+            width: 40px;
+            height: 40px;
+            margin: 0 auto;
+        }
+        
+        .lds-ring div {
+            box-sizing: border-box;
+            display: block;
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            margin: 4px;
+            border: 4px solid #3498db;
+            border-radius: 50%;
+            animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            border-color: #3498db transparent transparent transparent;
+        }
+        
+        .lds-ring div:nth-child(1) {
+            animation-delay: -0.45s;
+        }
+        
+        .lds-ring div:nth-child(2) {
+            animation-delay: -0.3s;
+        }
+        
+        .lds-ring div:nth-child(3) {
+            animation-delay: -0.15s;
+        }
+        
+        @keyframes lds-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .predict-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+            width: 100%;
+        }
+
+        .predict-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .predict-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lung Cancer Classification System</h1>
+            <div class="subtitle">Powered by Deep Learning</div>
+        </header>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>Upload Image</h2>
+                <p>Upload a lung CT scan image for classification</p>
+                
+                <div class="upload-box" id="drop-area">
+                    <i>📁</i>
+                    <p class="upload-text">Drag & drop files here or click to browse</p>
+                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                    <button class="upload-btn" id="browse-btn">Browse Files</button>
+                </div>
+                
+                <img id="preview-image" src="" alt="Preview">
+                
+                <div class="processing-section hidden" id="processing-section">
+                    <h3>Processing</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    
+                    <div class="processing-steps">
+                        <div class="step" id="step1">
+                            <div class="step-icon">1</div>
+                            <div class="step-text">Preprocessing image</div>
+                        </div>
+                        <div class="step" id="step2">
+                            <div class="step-icon">2</div>
+                            <div class="step-text">Loading model</div>
+                        </div>
+                        <div class="step" id="step3">
+                            <div class="step-icon">3</div>
+                            <div class="step-text">Analyzing scan</div>
+                        </div>
+                        <div class="step" id="step4">
+                            <div class="step-icon">4</div>
+                            <div class="step-text">Generating results</div>
+                        </div>
+                    </div>
+                    
+                    <div class="lds-ring" id="loading-spinner">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                </div>
+                
+                <button class="predict-btn" id="predict-btn" disabled>Predict</button>
+            </div>
+            
+            <div class="results-section hidden" id="results-section">
+                <h2>Classification Results</h2>
+                
+                <div class="results-card">
+                    <div class="prediction-label">Prediction</div>
+                    <div class="prediction-value" id="prediction-value">-</div>
+                    
+                    <div class="confidence-bars">
+                        <h3>Class Probabilities</h3>
+                        
+                        <div class="confidence-item">
+                            <div class="confidence-label">
+                                <span>Adenocarcinoma</span>
+                                <span id="adeno-prob">0%</span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar" id="adeno-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="confidence-item">
+                            <div class="confidence-label">
+                                <span>Squamous Cell Carcinoma</span>
+                                <span id="squamous-prob">0%</span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar" id="squamous-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="confidence-item">
+                            <div class="confidence-label">
+                                <span>Large Cell Carcinoma</span>
+                                <span id="large-prob">0%</span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar" id="large-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="confidence-item">
+                            <div class="confidence-label">
+                                <span>Normal</span>
+                                <span id="normal-prob">0%</span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar" id="normal-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results-card">
+                    <h3>About the Results</h3>
+                    <div class="result-item">
+                        <strong>Model:</strong>
+                        <span>VGG16 (Transfer Learning)</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Image Size:</strong>
+                        <span>224 × 224 pixels</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Image Type:</strong>
+                        <span id="image-type">-</span>
+                    </div>
+                    <div class="result-item">
+                        <strong>Processing Time:</strong>
+                        <span id="processing-time">-</span>
+                    </div>
+                </div>
+                
+                <p style="margin-top: 1rem; font-style: italic; color: #7f8c8d;">
+                    This is a demonstration tool. Results should be validated by healthcare professionals.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        &copy; 2025 Lung Cancer Classification System | Medical AI Research
+    </footer>
+
+    <script>
+        // DOM elements
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const browseBtn = document.getElementById('browse-btn');
+        const previewImage = document.getElementById('preview-image');
+        const predictBtn = document.getElementById('predict-btn');
+        const processingSection = document.getElementById('processing-section');
+        const resultsSection = document.getElementById('results-section');
+        const progressBar = document.getElementById('progress-bar');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const steps = [
+            document.getElementById('step1'),
+            document.getElementById('step2'),
+            document.getElementById('step3'),
+            document.getElementById('step4')
+        ];
+        
+        // Class labels based on your Python code
+        const classLabels = ['Adenocarcinoma', 'Large Cell Carcinoma', 'Normal', 'Squamous Cell Carcinoma'];
+        
+        // Event listeners
+        browseBtn.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = '#2980b9';
+            dropArea.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
+        });
+        
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.style.borderColor = '#3498db';
+            dropArea.style.backgroundColor = 'transparent';
+        });
+        
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = '#3498db';
+            dropArea.style.backgroundColor = 'transparent';
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(e);
+            }
+        });
+        
+        predictBtn.addEventListener('click', startPrediction);
+        
+        // Functions
+        function handleFileSelect(e) {
+            const file = e.target.files[0] || e.dataTransfer.files[0];
+            
+            if (file && file.type.match('image.*')) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                    predictBtn.disabled = false;
+                    
+                    // Reset results if they were shown
+                    resultsSection.classList.add('hidden');
+                    resetProgress();
+                    
+                    document.getElementById('image-type').textContent = file.type.split('/')[1].toUpperCase();
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function resetProgress() {
+            progressBar.style.width = '0%';
+            steps.forEach(step => {
+                step.classList.remove('active');
+                step.classList.remove('completed');
+            });
+        }
+        
+        function startPrediction() {
+            // Show processing section
+            processingSection.classList.remove('hidden');
+            loadingSpinner.style.display = 'inline-block';
+            predictBtn.disabled = true;
+            
+            // Reset progress 
+            resetProgress();
+            
+            // Simulate the processing steps with delays (in a real app, this would be actual processing)
+            simulateProcessingStep(0);
+        }
+        
+        function simulateProcessingStep(stepIndex) {
+            if (stepIndex >= steps.length) {
+                finishProcessing();
+                return;
+            }
+            
+            // Update progress bar
+            const progressPercentage = (stepIndex + 1) * (100 / steps.length);
+            progressBar.style.width = progressPercentage + '%';
+            
+            // Update step status
+            steps.forEach((step, i) => {
+                if (i < stepIndex) {
+                    step.classList.remove('active');
+                    step.classList.add('completed');
+                } else if (i === stepIndex) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active');
+                    step.classList.remove('completed');
+                }
+            });
+            
+            // Add delay for next step (different times for different steps)
+            const delays = [1000, 1500, 2000, 1000];
+            setTimeout(() => {
+                simulateProcessingStep(stepIndex + 1);
+            }, delays[stepIndex]);
+        }
+        
+        function finishProcessing() {
+            // Complete all steps
+            steps.forEach(step => {
+                step.classList.remove('active');
+                step.classList.add('completed');
+            });
+            
+            loadingSpinner.style.display = 'none';
+            
+            // Generate mock prediction results (in a real app, this would come from your model)
+            generateResults();
+            
+            // Show results section
+            resultsSection.classList.remove('hidden');
+            
+            // Enable predict button again
+            predictBtn.disabled = false;
+            
+            // Set processing time
+            document.getElementById('processing-time').textContent = (Math.random() * 2 + 1.5).toFixed(2) + ' seconds';
+        }
+        
+        function generateResults() {
+            // Simulate model prediction (random for demo, would be actual model output in real app)
+            const confidences = [
+                Math.random() * 0.3,  // Adenocarcinoma
+                Math.random() * 0.3,  // Large Cell Carcinoma
+                Math.random() * 0.3,  // Normal
+                Math.random() * 0.3   // Squamous Cell Carcinoma
+            ];
+            
+            // Normalize to make sum = 1
+            const sum = confidences.reduce((a, b) => a + b, 0);
+            const normalizedConfidences = confidences.map(c => c / sum);
+            
+            // Find max confidence class
+            const maxIndex = normalizedConfidences.indexOf(Math.max(...normalizedConfidences));
+            const predictedClass = classLabels[maxIndex];
+            
+            // Update UI
+            document.getElementById('prediction-value').textContent = predictedClass;
+            
+            // Define the order of classes in the UI (same as in the confidence bars)
+            const uiOrder = ['adeno', 'squamous', 'large', 'normal'];
+            const modelOrder = [0, 3, 1, 2]; // Maps UI order to model order
+            
+            // Update confidence bars
+            uiOrder.forEach((prefix, i) => {
+                const modelIndex = modelOrder[i];
+                const confidence = normalizedConfidences[modelIndex];
+                const percentage = (confidence * 100).toFixed(1) + '%';
+                
+                document.getElementById(`${prefix}-prob`).textContent = percentage;
+                document.getElementById(`${prefix}-bar`).style.width = percentage;
+            });
+        }
+    </script>
+</body>
+</html>
